@@ -27,6 +27,7 @@ RUN uv sync --frozen
 COPY ./app /code/app
 COPY ./helper_lib /code/helper_lib
 COPY main.py /code/
+COPY ./checkpoints/assignment2/best /code/checkpoints/assignment2/best
 
 # Command to run the application
 CMD ["uv", "run", "--no-sync", "fastapi", "run", "main.py", "--host", "0.0.0.0", "--port", "80"]
