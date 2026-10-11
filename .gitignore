@@ -12,3 +12,7 @@ wheels/
 
 #mac files
 .DS_Store
+
+# Downloaded datasets and local training checkpoints
+data/
+checkpoints/

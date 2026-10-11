@@ -25,6 +25,7 @@ RUN uv sync --frozen
 
 # Copy the application code
 COPY ./app /code/app
+COPY ./helper_lib /code/helper_lib
 COPY main.py /code/
 
 # Command to run the application
