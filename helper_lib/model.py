@@ -3,7 +3,6 @@ import torch.nn.functional as F
 
 
 class CNN(nn.Module):
-    """Assignment 2 architecture for 64x64 RGB images and 10 classes."""
 
     def __init__(self):
         super().__init__()
