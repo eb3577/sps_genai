@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from app.bigram_model import BigramModel
 from app.embedding_model import calculate_embedding
 from app.image_classifier import classify_image
+from app.image_generator import generate_digit
 
 app = FastAPI()
 
@@ -49,3 +51,21 @@ def classify(file: UploadFile):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get(
+    "/generate-digit",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}}}},
+)
+def get_generated_digit():
+    try:
+        image_bytes = generate_digit()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )

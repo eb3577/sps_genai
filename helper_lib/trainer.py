@@ -6,6 +6,68 @@ from tqdm import tqdm
 from .checkpoints import save_checkpoint
 
 
+def train_gan(model, data_loader, device="cpu", epochs=10, lr=0.0002):
+    if epochs < 1 or lr <= 0:
+        raise ValueError("epochs and lr must be positive.")
+
+    model.to(device)
+    model.train()
+    generator = model.generator
+    discriminator = model.discriminator
+
+    criterion = torch.nn.BCELoss()
+    opt_gen = torch.optim.Adam(
+        generator.parameters(), lr=lr, betas=(0.5, 0.999)
+    )
+    opt_disc = torch.optim.Adam(
+        discriminator.parameters(), lr=lr, betas=(0.5, 0.999)
+    )
+
+    for epoch in range(epochs):
+        batches = 0
+        progress = tqdm(
+            data_loader, ncols=120, desc=f"Epoch {epoch + 1}/{epochs}"
+        )
+
+        for real, _ in progress:
+            real = real.to(device)
+            batch_size = real.size(0)
+            real_labels = torch.ones(batch_size, 1, device=device)
+            fake_labels = torch.zeros(batch_size, 1, device=device)
+
+            noise = torch.randn(batch_size, generator.z_dim, device=device)
+            fake = generator(noise)
+
+            # Train the discriminator without updating the generator.
+            opt_disc.zero_grad(set_to_none=True)
+            loss_real = criterion(discriminator(real), real_labels)
+            loss_fake = criterion(discriminator(fake.detach()), fake_labels)
+            loss_disc = (loss_real + loss_fake) / 2
+            loss_disc.backward()
+            opt_disc.step()
+
+            # Train the generator through the updated discriminator.
+            opt_gen.zero_grad(set_to_none=True)
+            opt_disc.zero_grad(set_to_none=True)
+            discriminator.requires_grad_(False)
+            try:
+                loss_gen = criterion(discriminator(fake), real_labels)
+                loss_gen.backward()
+                opt_gen.step()
+            finally:
+                discriminator.requires_grad_(True)
+
+            progress.set_postfix(
+                D_loss=loss_disc.item(), G_loss=loss_gen.item()
+            )
+            batches += 1
+
+        if batches == 0:
+            raise ValueError("Training loader is empty.")
+
+    return model
+
+
 def train_model(
     model,
     train_loader,
