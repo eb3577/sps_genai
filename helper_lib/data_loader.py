@@ -23,6 +23,31 @@ def get_data_loader(data_dir, batch_size=32, train=True):
     return loader
 
 
+def get_cifar10_generative_loader(
+    data_dir, batch_size=64, train=True, normalize=False
+):
+    transform_steps = [transforms.ToTensor()]
+    if normalize:
+        transform_steps.append(
+            transforms.Normalize(
+                (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
+            )
+        )
+
+    dataset = datasets.CIFAR10(
+        root=data_dir,
+        train=train,
+        download=True,
+        transform=transforms.Compose(transform_steps),
+    )
+
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=train,
+    )
+
+
 def get_mnist_data_loader(data_dir, batch_size=32, train=True):
     transform = transforms.Compose([
         transforms.ToTensor(),

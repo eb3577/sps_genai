@@ -4,6 +4,101 @@ import torch
 from tqdm import tqdm
 
 from .checkpoints import save_checkpoint
+from .generator import EnergyReplayBuffer
+
+
+def train_diffusion(
+    model, data_loader, criterion, optimizer, device="cpu", epochs=10
+):
+    """Train on RGB images in [0, 1]; the model normalizes internally."""
+    if epochs < 1:
+        raise ValueError("epochs must be positive.")
+
+    model.to(device)
+
+    for epoch in range(epochs):
+        model.train()
+        model.ema_network.eval()
+        total_loss = 0.0
+        total_images = 0
+
+        progress = tqdm(
+            data_loader,
+            ncols=120,
+            desc=f"Diffusion epoch {epoch + 1}/{epochs}",
+        )
+        for images, _ in progress:
+            images = images.to(device)
+            loss = model.train_step(images, optimizer, criterion)
+
+            total_loss += loss * images.size(0)
+            total_images += images.size(0)
+            progress.set_postfix(loss=loss)
+
+        if total_images == 0:
+            raise ValueError("Training loader is empty.")
+
+        print(f"Epoch {epoch + 1}: Noise loss={total_loss / total_images:.4f}")
+
+    return model
+
+
+def train_energy(
+    model, data_loader, optimizer, device="cpu", epochs=10, *,
+    alpha=0.1, steps=60, step_size=10.0, noise_std=0.005,
+):
+    """Train on 32x32 RGB images normalized to [-1, 1]."""
+    if epochs < 1 or steps < 1 or step_size <= 0:
+        raise ValueError("epochs, steps and step_size must be positive.")
+    if alpha < 0 or noise_std < 0:
+        raise ValueError("alpha and noise_std cannot be negative.")
+
+    model.to(device)
+    buffer = EnergyReplayBuffer(model, device)
+
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0.0
+        total_images = 0
+        progress = tqdm(
+            data_loader, ncols=120, desc=f"Energy epoch {epoch + 1}/{epochs}"
+        )
+
+        for real, _ in progress:
+            real = real.to(device)
+            batch_size = real.size(0)
+            real = (real + torch.randn_like(real) * noise_std).clamp(-1, 1)
+
+            optimizer.zero_grad(set_to_none=True)
+            fake = buffer.sample(batch_size, steps, step_size, noise_std)
+
+            scores = model(torch.cat([real, fake], dim=0).detach())
+            real_energy, fake_energy = scores.split(batch_size, dim=0)
+
+            contrastive_loss = real_energy.mean() - fake_energy.mean()
+            regularization = alpha * (
+                real_energy.square().mean() + fake_energy.square().mean()
+            )
+            loss = contrastive_loss + regularization
+
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.1)
+            optimizer.step()
+
+            total_loss += loss.item() * batch_size
+            total_images += batch_size
+            progress.set_postfix(
+                loss=loss.item(),
+                real_energy=real_energy.mean().item(),
+                fake_energy=fake_energy.mean().item(),
+            )
+
+        if total_images == 0:
+            raise ValueError("Training loader is empty.")
+
+        print(f"Epoch {epoch + 1}: Loss={total_loss / total_images:.4f}")
+
+    return model
 
 
 def train_gan(model, data_loader, device="cpu", epochs=10, lr=0.0002):

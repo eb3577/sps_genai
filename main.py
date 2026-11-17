@@ -5,6 +5,8 @@ from app.bigram_model import BigramModel
 from app.embedding_model import calculate_embedding
 from app.image_classifier import classify_image
 from app.image_generator import generate_digit
+from app.energy_generator import generate_energy_image
+from app.diffusion_generator import generate_diffusion_image
 
 app = FastAPI()
 
@@ -61,6 +63,42 @@ def classify(file: UploadFile):
 def get_generated_digit():
     try:
         image_bytes = generate_digit()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get(
+    "/generate-energy",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}}}},
+)
+def get_generated_energy_image():
+    try:
+        image_bytes = generate_energy_image()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get(
+    "/generate-diffusion",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}}}},
+)
+def get_generated_diffusion_image():
+    try:
+        image_bytes = generate_diffusion_image()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
