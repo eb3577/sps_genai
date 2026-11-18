@@ -1,0 +1,41 @@
+import torch
+#question 6
+# Create a tensor with gradient tracking enabled.
+x = torch.tensor([2.0], requires_grad=False)
+
+# Define y = x² + 3x.
+y = x**2 + 3 * x
+
+# Calculate the gradient.
+y.backward()
+
+print("x.grad =", x.grad)
+
+#question 7
+# Create a tensor with requires_grad=True
+x = torch.tensor([2.0], requires_grad=True)
+w = torch.tensor([1.0, 3.0], requires_grad=True) #modify w
+# Define a simple function y = x² + 3x
+2
+y = w[0] * x**2 + w[1] * x
+# Backpropagate
+y.backward()
+# Print the gradient
+print("x.grad =", x.grad)
+print("w.grad =", w.grad)
+
+#question 8
+x = torch.tensor([1.0], requires_grad=True)
+y = x * 3
+z = y.clone()
+w = z * 2
+w.backward() # This will raise an error
+
+#question 9
+x = torch.tensor([1.0], requires_grad=True)
+y1 = x * 2
+y1.backward()
+print("After first backward: x.grad =", x.grad)
+y2 = x * 3
+y2.backward()
+print("After second backward: x.grad =", x.grad)
